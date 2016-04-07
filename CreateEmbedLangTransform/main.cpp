@@ -3,11 +3,21 @@
 #include <MsiQuery.h>
 #include <iostream>
 
+#pragma comment(lib, "msi.lib")
+
 #ifdef _UNICODE
 #define tcerr wcerr
 #else
 #define tcerr cerr
 #endif // _UNICODE
+
+void HandleWindowsError(LPCTSTR func) {
+  DWORD error = GetLastError();
+  LPTSTR errorMessage;
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<LPTSTR>(&errorMessage), 0, NULL);
+  std::tcerr << TEXT("error at ") << func << TEXT(": ") << errorMessage << std::endl;
+  LocalFree(errorMessage);
+}
 
 void HandleMsiError(LPCTSTR func) {
   PMSIHANDLE error = MsiGetLastErrorRecord();
@@ -24,14 +34,9 @@ void HandleMsiError(LPCTSTR func) {
       delete[] errorMessage;
     }
   }
-}
-
-void HandleWindowsError(LPCTSTR func) {
-  DWORD error = GetLastError();
-  LPTSTR errorMessage;
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<LPTSTR>(&errorMessage), 0, NULL);
-  std::tcerr << TEXT("error at ") << func << TEXT(": ") << errorMessage << std::endl;
-  LocalFree(errorMessage);
+  else {
+    HandleWindowsError(func);
+  }
 }
 
 int _tmain(int argc, TCHAR **argv) {
