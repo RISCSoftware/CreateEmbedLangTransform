@@ -22,7 +22,7 @@ void HandleWindowsError(LPCTSTR func) {
 }
 
 void HandleMsiError(UINT result, LPCTSTR func) {
-  PMSIHANDLE error = MsiGetLastErrorRecord();
+  PMSIHANDLE error{MsiGetLastErrorRecord()};
   if (error) {
     DWORD length{0u};
     auto status{MsiFormatRecord(0u, error, TEXT(""), &length)}; // get the length of the error message
