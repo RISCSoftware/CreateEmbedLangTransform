@@ -2,7 +2,7 @@
 #include <tchar.h>
 #include <MsiQuery.h>
 #include <iostream>
-#include <memory>
+#include <string>
 
 #pragma comment(lib, "msi.lib")
 
@@ -11,6 +11,7 @@
 #else
 #define tcerr cerr
 #endif // _UNICODE
+using tstring = std::basic_string<TCHAR>;
 
 void HandleWindowsError(LPCTSTR func) {
   DWORD error{GetLastError()};
@@ -27,9 +28,10 @@ void HandleMsiError(UINT result, LPCTSTR func) {
     DWORD length{0u};
     auto status{MsiFormatRecord(0u, error, TEXT(""), &length)}; // get the length of the error message
     if (status == ERROR_MORE_DATA) {
+      tstring errorMessage;
+      errorMessage.resize(length);
       length++; // for the '\0' terminator
-      auto errorMessage{std::make_unique<TCHAR[]>(length)};
-      status = MsiFormatRecord(0u, error, errorMessage.get(), &length);
+      status = MsiFormatRecord(0u, error, errorMessage.data(), &length);
       if (status == ERROR_SUCCESS) {
         std::tcerr << TEXT("MSI error at ") << func << TEXT(": ") << errorMessage << TEXT(" (") << result << TEXT(")") << std::endl;
       }
@@ -125,18 +127,19 @@ int _tmain(int argc, TCHAR **argv) {
     HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty length"));
     return 1;
   }
-  length++; // for the '\0' terminator
   {
-    auto stringValue{std::make_unique<TCHAR[]>(length + _tcslen(argv[3]) + 1)}; // allocate a buffer long enough for the new value (including the separator)
-    uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, stringValue.get(), &length);
+    tstring stringValue;
+    stringValue.resize(length); // allocate space for the value to be filled (note: reserve would lead to UB!)
+    length++; // for the '\0' terminator
+    uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, stringValue.data(), &length);
     if (uResult != ERROR_SUCCESS) {
       HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty value"));
       return 1;
     }
-    if (_tcsstr(stringValue.get(), argv[3]) == nullptr) { // check if the required value is already included, only add it if not
-      stringValue[length] = TEXT(',');
-      _tcscpy(stringValue.get() + length + 1, argv[3]);
-      uResult = MsiSummaryInfoSetProperty(summaryInfo, PIDSI_TEMPLATE, dataType, 0, nullptr, stringValue.get());
+    if (stringValue.find(argv[3]) == tstring::npos) { // check if the required value is already included, only add it if not
+      stringValue.append(TEXT(","));
+      stringValue.append(argv[3]);
+      uResult = MsiSummaryInfoSetProperty(summaryInfo, PIDSI_TEMPLATE, dataType, 0, nullptr, stringValue.data());
       if (uResult != ERROR_SUCCESS) {
         HandleMsiError(uResult, TEXT("MsiSummaryInfoSetProperty"));
         return 1;
