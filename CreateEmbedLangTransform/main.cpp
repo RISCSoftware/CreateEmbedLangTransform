@@ -1,3 +1,11 @@
+/*
+ * Copyright 2016-2023, RISC Software GmbH. All rights reserved.
+ * Distributed under the terms of the MIT License.
+ * 
+ * Authors:
+ *  Joachim Mairböck <joachim.mairboeck@risc-software.at>
+ */
+
 #include <Windows.h>
 #include <tchar.h>
 #include <MsiQuery.h>
