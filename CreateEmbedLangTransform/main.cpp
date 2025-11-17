@@ -119,7 +119,7 @@ int _tmain(int argc, TCHAR **argv) {
       return 1;
     }
     langId = stringValue.substr(stringValue.find(TEXT(';')) + 1);
-    length = 0u;
+    length = 0u; // reset the length for reuse below
   }
   uResult = MsiDatabaseOpenView(target, TEXT("SELECT `Name`,`Data` FROM _Storages"), &view);
   if (uResult != ERROR_SUCCESS) {
