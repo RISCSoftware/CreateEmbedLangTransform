@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023, RISC Software GmbH. All rights reserved.
+ * Copyright 2016-2025, RISC Software GmbH. All rights reserved.
  * Distributed under the terms of the MIT License.
  * 
  * Authors:
@@ -52,9 +52,9 @@ void HandleMsiError(UINT result, LPCTSTR func) {
 }
 
 int _tmain(int argc, TCHAR **argv) {
-  if (argc < 4) {
+  if (argc < 3) {
     std::tcerr << TEXT("ERROR: too few arguments") << std::endl;
-    std::tcerr << TEXT("usage: ") << argv[0] << TEXT(" <target-and-reference-msi> <source-msi> <language-identifier>") << std::endl;
+    std::tcerr << TEXT("usage: ") << argv[0] << TEXT(" <target-and-reference-msi> <source-msi> [<language-identifier>]") << std::endl;
     return 1;
   }
 
@@ -95,6 +95,32 @@ int _tmain(int argc, TCHAR **argv) {
     HandleMsiError(uResult, TEXT("MsiCreateTransformSummaryInfo"));
     return 1;
   }
+  tstring langId;
+  if (argc >= 4) {
+    langId = argv[3];
+  }
+  else {
+    tstring stringValue;
+    uResult = MsiGetSummaryInformation(source, nullptr, 0u, &summaryInfo);
+    if (uResult != ERROR_SUCCESS) {
+      HandleMsiError(uResult, TEXT("MsiGetSummaryInformation source"));
+      return 1;
+    }
+    uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, TEXT(""), &length); // get the length of the stored value
+    if (uResult != ERROR_MORE_DATA) {
+      HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty source length"));
+      return 1;
+    }
+    stringValue.resize(length); // allocate space for the value to be filled (note: reserve would lead to UB!)
+    length++; // for the '\0' terminator
+    uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, stringValue.data(), &length);
+    if (uResult != ERROR_SUCCESS) {
+      HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty source value"));
+      return 1;
+    }
+    langId = stringValue.substr(stringValue.find(TEXT(';')) + 1);
+    length = 0u;
+  }
   uResult = MsiDatabaseOpenView(target, TEXT("SELECT `Name`,`Data` FROM _Storages"), &view);
   if (uResult != ERROR_SUCCESS) {
     HandleMsiError(uResult, TEXT("MsiDatabaseOpenView"));
@@ -105,7 +131,7 @@ int _tmain(int argc, TCHAR **argv) {
     std::tcerr << TEXT("error at MsiCreateRecord") << std::endl;
     return 1;
   }
-  uResult = MsiRecordSetString(record, 1u, argv[3]);
+  uResult = MsiRecordSetString(record, 1u, langId.c_str());
   if (uResult != ERROR_SUCCESS) {
     HandleMsiError(uResult, TEXT("MsiRecordSetString substorage-name"));
     return 1;
@@ -127,12 +153,12 @@ int _tmain(int argc, TCHAR **argv) {
   }
   uResult = MsiGetSummaryInformation(target, nullptr, 1u, &summaryInfo);
   if (uResult != ERROR_SUCCESS) {
-    HandleMsiError(uResult, TEXT("MsiGetSummaryInformation"));
+    HandleMsiError(uResult, TEXT("MsiGetSummaryInformation target"));
     return 1;
   }
   uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, TEXT(""), &length); // get the length of the stored value
   if (uResult != ERROR_MORE_DATA) {
-    HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty length"));
+    HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty target length"));
     return 1;
   }
   {
@@ -141,12 +167,12 @@ int _tmain(int argc, TCHAR **argv) {
     length++; // for the '\0' terminator
     uResult = MsiSummaryInfoGetProperty(summaryInfo, PIDSI_TEMPLATE, &dataType, nullptr, nullptr, stringValue.data(), &length);
     if (uResult != ERROR_SUCCESS) {
-      HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty value"));
+      HandleMsiError(uResult, TEXT("MsiSummaryInfoGetProperty target value"));
       return 1;
     }
-    if (stringValue.find(argv[3]) == tstring::npos) { // check if the required value is already included, only add it if not
+    if (stringValue.find(langId) == tstring::npos) { // check if the required value is already included, only add it if not
       stringValue.append(TEXT(","));
-      stringValue.append(argv[3]);
+      stringValue.append(langId);
       uResult = MsiSummaryInfoSetProperty(summaryInfo, PIDSI_TEMPLATE, dataType, 0, nullptr, stringValue.data());
       if (uResult != ERROR_SUCCESS) {
         HandleMsiError(uResult, TEXT("MsiSummaryInfoSetProperty"));
