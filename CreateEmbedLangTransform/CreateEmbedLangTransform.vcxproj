@@ -85,6 +85,9 @@
   <ItemGroup>
     <ResourceCompile Include="CreateEmbedLangTransform.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="sign.bat" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
